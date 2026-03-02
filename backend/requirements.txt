@@ -1,48 +1,95 @@
-# Core
-fastapi==0.115.0
-uvicorn[standard]==0.30.1
-pydantic==2.9.0
-pydantic-settings==2.4.0
+# ==============================================================================
+# managr.io — Backend Dependencies
+# ==============================================================================
+#
+# Phase labels indicate when each dependency is actually needed:
+#   [P0] Required for MVP / current build
+#   [P1] Needed by Phase 1 features (IAS 29 engine, ERP connectors)
+#   [P2] Future phases — install when you build those modules
+#
+# Install MVP only:
+#   pip install -r requirements.txt
+#
+# Python: 3.11+ recommended (required for TypedDict + operator.add typing)
+# ==============================================================================
 
-# Database
-sqlalchemy==2.0.32
-alembic==1.13.2
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
-pgvector==0.2.5
 
-# Redis
-redis==5.0.7
-celery==5.4.0
+# ── API Framework ──────────────────────────────────────────────────────────────
+fastapi==0.115.0                # [P0] Web framework
+uvicorn[standard]==0.30.1       # [P0] ASGI server (includes websockets + watchfiles)
+pydantic==2.9.0                 # [P0] Request/response validation
+pydantic-settings==2.4.0        # [P0] Settings management from .env
 
-# AI/ML
-langchain==0.3.0
-langgraph==0.2.0
-langchain-openai==0.1.20
-langchain-anthropic==0.1.20
-openai==1.45.0
-anthropic==0.34.0
-sentence-transformers==3.0.1
 
-# ERP Integration
-httpx==0.27.0
-apideck-sdk==0.1.0
+# ── Agent Core ─────────────────────────────────────────────────────────────────
+langgraph==0.2.0                # [P0] Orchestration graph (StateGraph, MemorySaver)
+anthropic==0.34.0               # [P0] Claude API client (AsyncAnthropic)
+langchain-anthropic==0.1.20     # [P0] LangChain ↔ Anthropic bridge (used by LangGraph)
+langchain==0.3.0                # [P0] Core LangChain (required by langgraph)
 
-# Accounting
-pandas==2.2.2
-numpy==1.26.4
-openpyxl==3.1.5
-xlsxwriter==3.2.0
-reportlab==4.2.0
 
-# Visualization
-plotly==5.24.0
-kaleido==0.2.1
+# ── Database ───────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.32              # [P1] ORM — needed when DB models are built
+alembic==1.13.2                 # [P1] Schema migrations
+asyncpg==0.29.0                 # [P1] Async PostgreSQL driver (used by SQLAlchemy async)
+psycopg2-binary==2.9.9          # [P1] Sync PostgreSQL driver (Alembic migrations)
+pgvector==0.2.5                 # [P1] pgvector extension — RAG / IFRS knowledge retrieval
 
-# Utilities
-python-dotenv==1.0.1
-python-multipart==0.0.9
-email-validator==2.2.0
-jinja2==3.1.4
-aiofiles==24.1.0
-tenacity==8.5.0
+
+# ── Cache / Session State ──────────────────────────────────────────────────────
+redis==5.0.7                    # [P1] Redis client — session manager, STM cache
+# celery removed: LangGraph background tasks via FastAPI BackgroundTasks for P0
+# Add celery==5.4.0 in P1 when you need scheduled monthly close jobs
+
+
+# ── ERP Integration ────────────────────────────────────────────────────────────
+httpx==0.27.0                   # [P0] Async HTTP client (Apideck, RBZ rate feed, ZIMSTAT)
+# apideck-sdk: official SDK is not on PyPI — use httpx directly against Apideck REST API
+# See: https://developers.apideck.com/apis/accounting/reference
+
+
+# ── Accounting & Numerics ──────────────────────────────────────────────────────
+pandas==2.2.2                   # [P0] Trial balance manipulation, variance calculations
+numpy==1.26.4                   # [P0] IAS 29 indexation arithmetic
+openpyxl==3.1.5                 # [P0] Read/write .xlsx (report template population)
+xlsxwriter==3.2.0               # [P0] Create formatted Excel workbooks with charts
+# reportlab removed for P0: use WeasyPrint for PDF (better HTML→PDF for reports)
+WeasyPrint==62.3                # [P0] HTML → PDF conversion for management reports
+
+
+# ── Visualisation ──────────────────────────────────────────────────────────────
+plotly==5.24.0                  # [P0] Chart generation (revenue, margin, variance charts)
+kaleido==0.2.1                  # [P0] Plotly → static image export (PNG for PDF/email)
+
+
+# ── Email Delivery ─────────────────────────────────────────────────────────────
+sendgrid==6.11.0                # [P0] Transactional email — 5th-of-month report delivery
+
+
+# ── Utilities ──────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1            # [P0] Load .env into os.environ
+python-multipart==0.0.9         # [P0] File upload support (ERP data import)
+jinja2==3.1.4                   # [P0] Email + report HTML templating
+aiofiles==24.1.0                # [P0] Async file I/O (report writing)
+tenacity==8.5.0                 # [P0] Retry logic for ERP API calls
+email-validator==2.2.0          # [P0] Validate delivery email addresses
+
+
+# ── Auth ───────────────────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0  # [P1] JWT validation (Auth0 / Clerk tokens)
+passlib[bcrypt]==1.7.4            # [P1] Password hashing
+
+
+# ── Development & Testing ──────────────────────────────────────────────────────
+pytest==8.3.2                   # [P0] Test runner
+pytest-asyncio==0.24.0          # [P0] Async test support (required for LangGraph tests)
+httpx==0.27.0                   # [P0] Also used as async test client for FastAPI
+pytest-cov==5.0.0               # [P0] Coverage reporting
+
+
+# ── P2 / Future — do not install yet ──────────────────────────────────────────
+# sentence-transformers==3.0.1   # P1 — local embeddings if you move away from pgvector+OpenAI
+# openai==1.45.0                 # P2 — only if you add GPT-4 as a fallback LLM
+# langchain-openai==0.1.20       # P2 — bridge for OpenAI models
+# prophet==1.1.5                 # P2 — trend/forecast analysis (needs 6+ months of data first)
+# scikit-learn==1.5.0            # P3 — anomaly detection (Isolation Forest)
